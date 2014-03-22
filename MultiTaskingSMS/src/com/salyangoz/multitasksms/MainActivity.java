@@ -1,5 +1,7 @@
 package com.salyangoz.multitasksms;
 
+import com.salyangoz.services.MultiTaskSMSService;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;

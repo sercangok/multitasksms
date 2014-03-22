@@ -1,4 +1,4 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.classes;
 
 public class smsDate {
 	public String sms;

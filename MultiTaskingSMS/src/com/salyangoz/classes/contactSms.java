@@ -1,6 +1,7 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.classes;
 
 import java.util.ArrayList;
+
 
 import android.content.Context;
 

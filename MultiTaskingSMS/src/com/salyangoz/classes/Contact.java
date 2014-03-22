@@ -1,4 +1,4 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.classes;
 
 import java.io.Serializable;
 

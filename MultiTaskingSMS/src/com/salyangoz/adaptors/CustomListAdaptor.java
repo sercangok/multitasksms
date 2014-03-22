@@ -1,6 +1,12 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.adaptors;
 
 import java.util.List;
+
+import com.salyangoz.classes.smsContact;
+import com.salyangoz.multitasksms.R;
+import com.salyangoz.multitasksms.R.drawable;
+import com.salyangoz.multitasksms.R.id;
+import com.salyangoz.multitasksms.R.layout;
 
 import android.content.Context;
 import android.graphics.Color;

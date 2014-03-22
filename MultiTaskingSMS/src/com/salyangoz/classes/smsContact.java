@@ -1,4 +1,4 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.classes;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -13,9 +13,10 @@ public class smsContact {
 	public String body;
 	public String seen;
 	public String read;
+	public String thred_id;
 
 	public smsContact(String phoneNumber, String id, String date, String body,
-			String seen, String read) {
+			String seen, String read, String thread_id) {
 		super();
 		this.phoneNumber = phoneNumber;
 		this.id = id;
@@ -23,6 +24,7 @@ public class smsContact {
 		this.body = body;
 		this.seen = seen;
 		this.read = read;
+		this.thred_id = thread_id;
 	}
 
 	public smsContact() {

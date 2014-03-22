@@ -1,61 +1,77 @@
-package com.salyangoz.multitasksms;
+package com.salyangoz.services;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.salyangoz.adaptors.ConversationListenerAdaptor;
+import com.salyangoz.adaptors.CustomListAdaptor;
+import com.salyangoz.classes.Contact;
+import com.salyangoz.classes.ContactManager;
+import com.salyangoz.classes.contactSms;
+import com.salyangoz.classes.conversation;
+import com.salyangoz.classes.smsContact;
+import com.salyangoz.classes.smsDate;
+import com.salyangoz.multitasksms.R;
+import com.salyangoz.multitasksms.R.anim;
+import com.salyangoz.multitasksms.R.drawable;
+import com.salyangoz.multitasksms.R.id;
+import com.salyangoz.multitasksms.R.layout;
+import com.salyangoz.util.SendSMS;
+
+import android.R.string;
 import android.app.Service;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.database.CharArrayBuffer;
-import android.database.ContentObserver;
 import android.database.Cursor;
-import android.database.DataSetObserver;
 import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnFocusChangeListener;
 import android.view.View.OnKeyListener;
 import android.view.WindowManager;
 import android.view.View.OnClickListener;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-public class MultiTaskSMSService extends Service implements OnClickListener {
+public class MultiTaskSMSService extends Service implements OnClickListener,
+		OnItemClickListener {
 	private WindowManager wm;
 	private WindowManager.LayoutParams params;
 	private WindowManager.LayoutParams paramsSMSList;
 	private ImageView chatHead;
-	private View mainView;
-	private EditText txtPhoneNumber, txtContent;
-	public ListView lst;
+	private EditText txtPhoneNumber, txtContent, txtContactsName;
+	public ListView lst, lstContacts;
 	public static List<smsContact> distinctContents;
+	public static List<conversation> conversations;
 	public static ArrayList<String> phoneNumbers = new ArrayList<String>();
 	public static ArrayList<contactSms> allSms = new ArrayList<contactSms>();
 	public static ArrayList<smsDate> smsDates = new ArrayList<smsDate>();
 	private CustomListAdaptor veriAdaptoru;
+	private ConversationListenerAdaptor conversationAdaptoru;
 	private ProgressBar prgLoading;
 	private Boolean isOpen = false;
 	private Animation animRight;
-	private View smslist;
+	private View smslist, contactList;
+	ArrayAdapter<String> contactsAdaptor;
 	Button btnNewMessage;
+	Uri uri = Uri.parse("content://sms/");
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -98,6 +114,10 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 				R.anim.slide_right_animation);
 		smslist = LayoutInflater.from(this).inflate(R.layout.smslist, null);
 		btnNewMessage = (Button) smslist.findViewById(R.id.btnNewSMS);
+		contactList = LayoutInflater.from(this)
+				.inflate(R.layout.contacts, null);
+		txtContactsName = (EditText) contactList.findViewById(R.id.txtContact);
+		lstContacts = (ListView) contactList.findViewById(R.id.lstContacts);
 		return super.onStartCommand(intent, flags, startId);
 	}
 
@@ -164,10 +184,64 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 				});
 				wm.addView(newsms, paramsSMSList);
 				Button btn = (Button) newsms.findViewById(R.id.btnSend);
+				Button btnContacts = (Button) newsms
+						.findViewById(R.id.btnContacts);
+				btnContacts.setOnClickListener(new OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						wm.addView(contactList, paramsSMSList);
+						txtPhoneNumber.clearFocus();
+						txtContent.clearFocus();
+						AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
+							@Override
+							protected void onPostExecute(Void result) {
+								lstContacts.setAdapter(contactsAdaptor);
+								super.onPostExecute(result);
+							}
+
+							@Override
+							protected void onPreExecute() {
+								super.onPreExecute();
+							}
+
+							@Override
+							protected Void doInBackground(Void... params) {
+								contactsAdaptor = new ArrayAdapter<String>(
+										getApplicationContext(),
+										android.R.layout.simple_list_item_1,
+										getContacts());
+								return null;
+							}
+						};
+						asyncTask.execute();
+					}
+
+					private List<String> getContacts() {
+						List<String> allConntacList = new ArrayList<String>();
+						Cursor phones = getContentResolver()
+								.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+										null, null, null, null);
+						while (phones.moveToNext()) {
+							String name = phones.getString(phones
+									.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME));
+							String phoneNumber = phones.getString(phones
+									.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+							allConntacList.add(name);
+						}
+						phones.close();
+						return allConntacList;
+					}
+				});
 				btn.setOnClickListener(new OnClickListener() {
 
 					@Override
 					public void onClick(View v) {
+						try {
+							SendSMS.SendSMS(getApplicationContext(), txtContent
+									.getText().toString(), txtPhoneNumber
+									.getText().toString());
+						} catch (Exception e) {
+						}
 						paramsSMSList.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 						wm.removeView(newsms);
 						txtContent.clearFocus();
@@ -176,8 +250,8 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 				});
 			}
 		});
-		Uri uri = Uri.parse("content://sms/inbox");
 		lst = (ListView) smslist.findViewById(R.id.listView1);
+		lst.setOnItemClickListener(this);
 		AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
 
 			@Override
@@ -201,13 +275,12 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 			}
 		};
 		asyncTask.execute();
-
-		// getCategoryMessage("0", uri);
 	}
 
-	private void getCategoryMessage(String threadID, Uri uri) {
+	private List<conversation> getCategoryMessage(String threadID) {
 		Cursor c = getContentResolver().query(uri, null, "thread_id=?",
-				new String[] { threadID }, "date DESC");
+				new String[] { threadID }, "date ASC");
+		conversations = new ArrayList<conversation>();
 		if (c.moveToFirst()) {
 			String id;
 			String date;
@@ -227,19 +300,29 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 				seen = c.getString(seenColumn);
 				SimpleDateFormat sdf = new SimpleDateFormat(
 						"HH:mm:ss dd-MM-yyyy");
+				smsContact person = null, device = null;
+				if (seen.equals("1")) {
+					person = new smsContact(phoneNumber, id, date, body, seen,
+							null, null);
+				} else {
+					device = new smsContact(phoneNumber, id, date, body, seen,
+							null, null);
+				}
+				conversation con = new conversation(device, person);
+				conversations.add(con);
 				// String FormattedDate = sdf.format(date).toString();
 			} while (c.moveToNext());
 		}
+		return conversations;
 	}
 
 	private List<smsContact> getDistinctNumbers() {
 		ContactManager cm = new ContactManager(this);
 		Contact contact;
-		Uri uri = Uri.parse("content://sms/");
 		Cursor c = getContentResolver().query(
 				uri,
 				new String[] { "DISTINCT thread_id", "body", "date", "_id",
-						"address", "seen", "read" },
+						"address", "seen", "read", "thread_id" },
 				"address IS NOT NULL) GROUP BY (thread_id", null, "date DESC");
 		distinctContents = new ArrayList<smsContact>();
 		if (c.moveToFirst()) {
@@ -249,12 +332,14 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 			String body;
 			String seen;
 			String read;
+			String thread_id;
 			int idColumn = c.getColumnIndex("_id");
 			int dateColumn = c.getColumnIndex("date");
 			int numberColumn = c.getColumnIndex("address");
 			int bodyColumn = c.getColumnIndex("body");
 			int seenColumn = c.getColumnIndex("seen");
 			int readColumn = c.getColumnIndex("read");
+			int threadColumn = c.getColumnIndex("thread_id");
 			do {
 				id = c.getString(idColumn);
 				date = c.getString(dateColumn);
@@ -262,14 +347,16 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 				phoneNumber = c.getString(numberColumn);
 				seen = c.getString(seenColumn);
 				read = c.getString(readColumn);
+				thread_id = c.getString(threadColumn);
 				smsContact s = new smsContact(phoneNumber, id, date, body,
-						seen, read);
+						seen, read, thread_id);
 				contact = cm.getContactInfo(phoneNumber);
 				if (contact.getName() == null)
 					s.phoneNumber = phoneNumber;
 				else
 					s.phoneNumber = contact.getName();
-				distinctContents.add(s);
+				if (s.seen.endsWith("1"))
+					distinctContents.add(s);
 			} while (c.moveToNext());
 		}
 		return distinctContents;
@@ -349,4 +436,38 @@ public class MultiTaskSMSService extends Service implements OnClickListener {
 		super.onDestroy();
 	}
 
+	@Override
+	public void onItemClick(AdapterView<?> arg0, View arg1, int position,
+			long arg3) {
+		try {
+			final smsContact clickedObject = (smsContact) lst.getAdapter()
+					.getItem(position);
+			AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
+
+				@Override
+				protected void onPostExecute(Void result) {
+					lst.setAdapter(conversationAdaptoru);
+					prgLoading.setVisibility(View.INVISIBLE);
+					super.onPostExecute(result);
+				}
+
+				@Override
+				protected void onPreExecute() {
+					prgLoading.setVisibility(View.VISIBLE);
+					super.onPreExecute();
+				}
+
+				@Override
+				protected Void doInBackground(Void... params) {
+					conversationAdaptoru = new ConversationListenerAdaptor(
+							getApplicationContext(), R.layout.conversationxml,
+							getCategoryMessage(clickedObject.thred_id));
+					return null;
+				}
+			};
+			asyncTask.execute();
+
+		} catch (Exception e) {
+		}
+	}
 }
