@@ -1,8 +1,10 @@
 package com.salyangoz.services;
 
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 import com.salyangoz.adaptors.ConversationListenerAdaptor;
 import com.salyangoz.adaptors.CustomListAdaptor;
@@ -29,6 +31,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.IBinder;
 import android.provider.ContactsContract;
+import android.provider.SyncStateContract.Constants;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -51,7 +54,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MultiTaskSMSService extends Service implements OnClickListener,
-		OnItemClickListener {
+		OnItemClickListener, OnKeyListener {
 	private WindowManager wm;
 	private WindowManager.LayoutParams params;
 	private WindowManager.LayoutParams paramsSMSList;
@@ -69,8 +72,11 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 	private Boolean isOpen = false;
 	private Animation animRight;
 	private View smslist, contactList;
+	private ArrayList<View> viewList;
 	ArrayAdapter<String> contactsAdaptor;
 	Button btnNewMessage;
+	Button btnSend, btnContacts;
+	View newsms;
 	Uri uri = Uri.parse("content://sms/");
 
 	@Override
@@ -80,49 +86,73 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		try {
-			wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-			params = new WindowManager.LayoutParams(
-					WindowManager.LayoutParams.WRAP_CONTENT,
-					WindowManager.LayoutParams.WRAP_CONTENT,
-					WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
-					WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-					PixelFormat.TRANSLUCENT);
-			params.gravity = Gravity.TOP | Gravity.RIGHT;
-			params.x = 0;
-			params.y = 100;
-			chatHead = new ImageView(this);
-			chatHead.setImageResource(R.drawable.ic_launcher);
-
-			paramsSMSList = new WindowManager.LayoutParams(wm
-					.getDefaultDisplay().getWidth() / 2, wm.getDefaultDisplay()
-					.getHeight() / 2,
-					WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
-					WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-					PixelFormat.TRANSLUCENT);
-			paramsSMSList.gravity = Gravity.TOP | Gravity.RIGHT;
-			paramsSMSList.x = 0;
-			paramsSMSList.y = 180;
-
-			chatHead.setOnClickListener(this);
-			wm.addView(chatHead, params);
-		} catch (Exception e) {
-			Toast.makeText(this, e.getMessage().toString(), Toast.LENGTH_LONG)
-					.show();
-		}
-		animRight = AnimationUtils.loadAnimation(getApplicationContext(),
-				R.anim.slide_right_animation);
-		smslist = LayoutInflater.from(this).inflate(R.layout.smslist, null);
-		btnNewMessage = (Button) smslist.findViewById(R.id.btnNewSMS);
-		contactList = LayoutInflater.from(this)
-				.inflate(R.layout.contacts, null);
-		txtContactsName = (EditText) contactList.findViewById(R.id.txtContact);
-		lstContacts = (ListView) contactList.findViewById(R.id.lstContacts);
+		viewList = new ArrayList<View>();
+		init();
+		setMainBouble();
+		viewEventRegister();
 		return super.onStartCommand(intent, flags, startId);
 	}
 
-	@Override
-	public void onClick(View v) {
+	private void viewEventRegister() {
+		chatHead.setOnClickListener(this);
+		lst.setOnItemClickListener(this);
+		lstContacts.setOnItemClickListener(this);
+		txtPhoneNumber.setOnKeyListener(this);
+		txtContent.setOnKeyListener(this);
+		btnNewMessage.setOnClickListener(this);
+		btnSend.setOnClickListener(this);
+		btnContacts.setOnClickListener(this);
+	}
+
+	private void setMainBouble() {
+		wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+		params = new WindowManager.LayoutParams(
+				WindowManager.LayoutParams.WRAP_CONTENT,
+				WindowManager.LayoutParams.WRAP_CONTENT,
+				WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
+				WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+				PixelFormat.TRANSLUCENT);
+		params.gravity = Gravity.TOP | Gravity.RIGHT;
+		params.x = 0;
+		params.y = 100;
+		chatHead.setImageResource(R.drawable.ic_launcher);
+		paramsSMSList = new WindowManager.LayoutParams(wm.getDefaultDisplay()
+				.getWidth() / 2, wm.getDefaultDisplay().getHeight() / 2,
+				WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
+				WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+				PixelFormat.TRANSLUCENT);
+		paramsSMSList.gravity = Gravity.TOP | Gravity.RIGHT;
+		paramsSMSList.x = 0;
+		paramsSMSList.y = 180;
+		wm.addView(chatHead, params);
+	}
+
+	private void init() {
+		// ImageView
+		chatHead = new ImageView(this);
+		// Xml-Layouts
+		newsms = LayoutInflater.from(getApplicationContext()).inflate(
+				R.layout.newsms, null);
+		smslist = LayoutInflater.from(this).inflate(R.layout.smslist, null);
+		contactList = LayoutInflater.from(this)
+				.inflate(R.layout.contacts, null);
+		// ListVies
+		lst = (ListView) smslist.findViewById(R.id.lstSmsList);
+		lstContacts = (ListView) contactList.findViewById(R.id.lstContacts);
+		// Buttons
+		btnSend = (Button) newsms.findViewById(R.id.btnSend);
+		btnNewMessage = (Button) smslist.findViewById(R.id.btnNewSMS);
+		btnContacts = (Button) newsms.findViewById(R.id.btnContacts);
+		// EditTexts
+		txtContactsName = (EditText) contactList.findViewById(R.id.txtContact);
+		txtPhoneNumber = (EditText) newsms
+				.findViewById(R.id.edtTelephoneNumber);
+		txtContent = (EditText) newsms.findViewById(R.id.edtContent);
+		// ProgressBar
+		prgLoading = (ProgressBar) smslist.findViewById(R.id.prgLoading);
+	}
+
+	public void onClick2(View v) {
 		if (isOpen) {
 			smslist.startAnimation(animRight);
 			wm.removeView(smslist);
@@ -134,18 +164,10 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 			isOpen = true;
 		}
 
-		prgLoading = (ProgressBar) smslist.findViewById(R.id.prgLoading);
 		btnNewMessage.setOnClickListener(new OnClickListener() {
-
 			@Override
 			public void onClick(View v) {
 				paramsSMSList.flags = WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
-				final View newsms = LayoutInflater
-						.from(getApplicationContext()).inflate(R.layout.newsms,
-								null);
-				txtPhoneNumber = (EditText) newsms
-						.findViewById(R.id.edtTelephoneNumber);
-				txtContent = (EditText) newsms.findViewById(R.id.edtContent);
 				InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
 				imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
 				txtPhoneNumber.requestFocus();
@@ -183,9 +205,8 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 					}
 				});
 				wm.addView(newsms, paramsSMSList);
-				Button btn = (Button) newsms.findViewById(R.id.btnSend);
-				Button btnContacts = (Button) newsms
-						.findViewById(R.id.btnContacts);
+				btnSend = (Button) newsms.findViewById(R.id.btnSend);
+				btnContacts = (Button) newsms.findViewById(R.id.btnContacts);
 				btnContacts.setOnClickListener(new OnClickListener() {
 					@Override
 					public void onClick(View v) {
@@ -232,7 +253,7 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 						return allConntacList;
 					}
 				});
-				btn.setOnClickListener(new OnClickListener() {
+				btnSend.setOnClickListener(new OnClickListener() {
 
 					@Override
 					public void onClick(View v) {
@@ -250,8 +271,6 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 				});
 			}
 		});
-		lst = (ListView) smslist.findViewById(R.id.listView1);
-		lst.setOnItemClickListener(this);
 		AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
 
 			@Override
@@ -275,11 +294,63 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 			}
 		};
 		asyncTask.execute();
+		// Declare adaptor
+		// Setadaptor
+
+	}
+
+	private <T> void getDatasAssAsyc(final ListView listview,
+			final int customRowXml, final List<T> list, final T customAdaptor,
+			final String adaptorName) {
+		AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
+			@Override
+			protected void onPostExecute(Void result) {
+				// SetAdaptor
+				prgLoading.setVisibility(View.INVISIBLE);
+				super.onPostExecute(result);
+			}
+
+			@Override
+			protected void onPreExecute() {
+				prgLoading.setVisibility(View.VISIBLE);
+				super.onPreExecute();
+			}
+
+			@Override
+			protected Void doInBackground(Void... params) {
+				// Create Adaptor
+				return null;
+			}
+		};
+		asyncTask.execute();
+	}
+
+	private List<String> getContacts() {
+		List<String> allConntacList = new ArrayList<String>();
+		Contact con;
+		Cursor phones = getContentResolver().query(
+				ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null,
+				null, null);
+		while (phones.moveToNext()) {
+			String name = phones
+					.getString(phones
+							.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME));
+			String phoneNumber = phones
+					.getString(phones
+							.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+			String id = phones
+					.getString(phones
+							.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID));
+			// con = new Contact(Long.parseLong(id), name, phoneNumber);
+			allConntacList.add(name);
+		}
+		phones.close();
+		return allConntacList;
 	}
 
 	private List<conversation> getCategoryMessage(String threadID) {
 		Cursor c = getContentResolver().query(uri, null, "thread_id=?",
-				new String[] { threadID }, "date ASC");
+				new String[] { threadID }, "date DESC");
 		conversations = new ArrayList<conversation>();
 		if (c.moveToFirst()) {
 			String id;
@@ -359,86 +430,22 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 					distinctContents.add(s);
 			} while (c.moveToNext());
 		}
+		conversations = null;
 		return distinctContents;
-	}
-
-	private void getMessagesSent(String number) {
-		Uri uri = Uri.parse("content://sms/sent");
-		Cursor c = getContentResolver().query(uri, null, null, null, null);
-		if (c.moveToFirst()) {
-			String id;
-			String date;
-			String phoneNumber;
-			String body;
-
-			int idColumn = c.getColumnIndex("_id");
-			int dateColumn = c.getColumnIndex("date");
-			int numberColumn = c.getColumnIndex("address");
-			int bodyColumn = c.getColumnIndex("body");
-			do {
-				id = c.getString(idColumn);
-				date = c.getString(dateColumn);
-				body = c.getString(bodyColumn);
-				phoneNumber = c.getString(numberColumn);
-				SimpleDateFormat sdf = new SimpleDateFormat(
-						"dd-MM-yyyy HH:mm:ss");
-				String FormattedDate = sdf.format(date).toString();
-				if (phoneNumber == number) {
-					smsDate sms = new smsDate();
-					sms.date = date;
-					sms.sms = body;
-					sms.isSent = true;
-					smsDates.add(sms);
-				}
-			} while (c.moveToNext());
-		}
-	}
-
-	private void getMessagesInbox(Cursor c) {
-		if (c.moveToFirst()) {
-			String id;
-			String date;
-			String phoneNumber;
-			String body;
-
-			int idColumn = c.getColumnIndex("_id");
-			int dateColumn = c.getColumnIndex("date");
-			int numberColumn = c.getColumnIndex("address");
-			int bodyColumn = c.getColumnIndex("body");
-			for (String number : phoneNumbers) {
-				do {
-					id = c.getString(idColumn);
-					date = c.getString(dateColumn);
-					body = c.getString(bodyColumn);
-					phoneNumber = c.getString(numberColumn);
-					SimpleDateFormat sdf = new SimpleDateFormat(
-							"HH:mm:ss dd-MM-yyyy");
-					String FormattedDate = sdf.format(date).toString();
-					if (phoneNumber == number) {
-						smsDate sms = new smsDate();
-						sms.date = date;
-						sms.sms = body;
-						sms.isSent = false;
-						smsDates.add(sms);
-					}
-				} while (c.moveToNext());
-				getMessagesSent(phoneNumber);
-				contactSms con = new contactSms(phoneNumber, smsDates);
-				smsDates.removeAll(smsDates);
-				c.moveToFirst();
-			}
-		}
-	}
-
-	@Override
-	public void onDestroy() {
-		wm.removeView(chatHead);
-		super.onDestroy();
 	}
 
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int position,
 			long arg3) {
+		if (arg1 == lst) {
+			lstSmsList_Click(position);
+		} else if (arg1 == lstContacts) {
+			lstContacts_Click(position);
+		}
+		lstSmsList_Click(position);
+	}
+
+	private void lstSmsList_Click(int position) {
 		try {
 			final smsContact clickedObject = (smsContact) lst.getAdapter()
 					.getItem(position);
@@ -470,4 +477,150 @@ public class MultiTaskSMSService extends Service implements OnClickListener,
 		} catch (Exception e) {
 		}
 	}
+
+	private void lstContacts_Click(int position) {
+
+	}
+
+	@Override
+	public boolean onKey(View v, int keyCode, KeyEvent event) {
+		if (event.getAction() == KeyEvent.ACTION_DOWN
+				&& keyCode == KeyEvent.KEYCODE_ENTER) {
+			txtPhoneNumber.clearFocus();
+			txtContent.requestFocus();
+			return true;
+		}
+		return false;
+	}
+
+	private void edtInSmsView_Click() {
+		paramsSMSList.flags = WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
+		wm.updateViewLayout(newsms, paramsSMSList);
+		txtPhoneNumber.clearFocus();
+		txtContent.requestFocus();
+	}
+
+	@Override
+	public void onClick(View v) {
+
+		switch (v.getId()) {
+		case R.id.btnNewSMS:
+			btnNewSms_Click();
+			break;
+		case R.id.btnSend:
+			btnSend_Click();
+			break;
+		case R.id.btnContacts:
+			btnContacts_Click();
+			break;
+		case R.id.edtTelephoneNumber:
+			edtInSmsView_Click();
+			break;
+		case R.id.edtContent:
+			edtInSmsView_Click();
+			break;
+		default:
+			chatHead_Click();
+			break;
+		}
+	}
+
+	private void btnContacts_Click() {
+		txtPhoneNumber.clearFocus();
+		txtContent.clearFocus();
+		wm.addView(contactList, paramsSMSList);
+		contactsAdaptor = new ArrayAdapter<String>(getApplicationContext(),
+				android.R.layout.simple_list_item_1, getContacts());
+		lstContacts.setAdapter(contactsAdaptor);
+		AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
+			@Override
+			protected void onPostExecute(Void result) {
+				super.onPostExecute(result);
+			}
+
+			@Override
+			protected void onPreExecute() {
+				super.onPreExecute();
+			}
+
+			@Override
+			protected Void doInBackground(Void... params) {
+				return null;
+			}
+		};
+		// asyncTask.execute();
+	}
+
+	private void chatHead_Click() {
+		if (isOpen) {
+			wm.removeView(smslist);
+			isOpen = false;
+
+		} else {
+			wm.addView(smslist, paramsSMSList);
+			isOpen = true;
+		}
+		AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
+
+			@Override
+			protected void onPostExecute(Void result) {
+				lst.setAdapter(veriAdaptoru);
+				prgLoading.setVisibility(View.INVISIBLE);
+				super.onPostExecute(result);
+			}
+
+			@Override
+			protected void onPreExecute() {
+				prgLoading.setVisibility(View.VISIBLE);
+				super.onPreExecute();
+			}
+
+			@Override
+			protected Void doInBackground(Void... params) {
+				veriAdaptoru = new CustomListAdaptor(getApplicationContext(),
+						R.layout.rowfordistinctsms, getDistinctNumbers());
+				return null;
+			}
+		};
+		asyncTask.execute();
+
+	}
+
+	private void btnNewSms_Click() {
+		paramsSMSList.flags = WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
+		wm.addView(newsms, paramsSMSList);
+		InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+		imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+		txtPhoneNumber.requestFocus();
+		if (conversations != null) {
+			txtPhoneNumber.setText(conversations.get(0).person.phoneNumber);
+		} else
+			txtPhoneNumber.setText(null);
+		txtContent.setText(null);
+		conversations = null;
+	}
+
+	private void btnSend_Click() {
+		try {
+			if (txtPhoneNumber.getText() == null) {
+				throw new Exception();
+			}
+			SendSMS.SendSMS(getApplicationContext(), txtContent.getText()
+					.toString(), txtPhoneNumber.getText().toString());
+		} catch (Exception e) {
+			Log.v("error", "Hata frilattim");
+		}
+		paramsSMSList.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+		wm.removeView(newsms);
+		txtContent.clearFocus();
+		txtPhoneNumber.clearFocus();
+		veriAdaptoru.notifyDataSetChanged();
+	}
+
+	@Override
+	public void onDestroy() {
+		wm.removeView(chatHead);
+		super.onDestroy();
+	}
+
 }

@@ -48,4 +48,9 @@ public class CustomListAdaptor extends ArrayAdapter<smsContact> {
 		return satirView;
 	}
 
+	public static CustomListAdaptor getInstance(Context context, int res,
+			List<smsContact> objects) {
+		return new CustomListAdaptor(context, res, objects);
+	}
+
 }

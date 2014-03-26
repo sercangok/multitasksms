@@ -1,21 +1,16 @@
 package com.salyangoz.classes;
 
-import java.io.Serializable;
+public class Contact {
 
-public class Contact implements Serializable {
-
-	private static final long serialVersionUID = 1L;
 	private long contactID;
 	private String name;
 	private String phoneNumber;
-	private int photoID;
 
-	public Contact(long contactID, String name, String phoneNumber, int photoID) {
+	public Contact(long contactID, String name, String phoneNumber) {
 		super();
 		this.contactID = contactID;
 		this.name = name;
 		this.phoneNumber = phoneNumber;
-		this.photoID = photoID;
 	}
 
 	public long getContactID() {
@@ -41,13 +36,4 @@ public class Contact implements Serializable {
 	public void setPhoneNumber(String phoneNumber) {
 		this.phoneNumber = phoneNumber;
 	}
-
-	public int getPhotoID() {
-		return photoID;
-	}
-
-	public void setPhotoID(int photoID) {
-		this.photoID = photoID;
-	}
-
 }

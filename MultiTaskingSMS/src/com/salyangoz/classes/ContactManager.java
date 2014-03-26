@@ -2,8 +2,6 @@ package com.salyangoz.classes;
 
 import java.io.InputStream;
 
-
-
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -44,7 +42,7 @@ public class ContactManager {
 			photoID = contactCursor.getInt(idx);
 			// profilePhoto = getPhoto(context.getContentResolver(), contactID);
 		}
-		Contact contact = new Contact(contactID, name, phoneNumber, photoID);
+		Contact contact = new Contact(contactID, name, phoneNumber);
 		return contact;
 	}
 

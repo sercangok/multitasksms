@@ -31,15 +31,21 @@ public class ConversationListenerAdaptor extends ArrayAdapter<conversation> {
 	public View getView(int position, View convertView, ViewGroup parent) {
 		View satirView;
 		satirView = mInflater.inflate(R.layout.conversationxml, null);
-		TextView txtDevice, txtPerson;
-		txtDevice = (TextView) satirView.findViewById(R.id.txtDevice);
-		txtPerson = (TextView) satirView.findViewById(R.id.txtPerson);
+		TextView txtMessage = (TextView) satirView.findViewById(R.id.txtDevice);
 		conversation conv = getItem(position);
 		if (conv.device != null) {
-			txtDevice.setText(conv.device.body);
-		} else
-			txtPerson.setText(conv.person.body);
+			txtMessage.setText(conv.device.body);
+			txtMessage.setTextColor(Color.BLACK);
+		} else {
+			txtMessage.setText(conv.person.body);
+			txtMessage.setTextColor(Color.BLUE);
+		}
 		return satirView;
+	}
+
+	public static ConversationListenerAdaptor getInstance(Context context,
+			int resource, List<conversation> objects) {
+		return new ConversationListenerAdaptor(context, resource, objects);
 	}
 
 }
